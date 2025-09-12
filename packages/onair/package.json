@@ -1,0 +1,21 @@
+{
+  "name": "@b38dev/onair",
+  "version": "1.0.0",
+  "description": "Site b38.dev/onair",
+  "main": "src/index.ts",
+  "scripts": {},
+  "author": "Vick Scarlet(vick@syaro.io)",
+  "license": "ISC",
+  "dependencies": {
+    "@koa/router": "^12.0.2",
+    "bangumi-data": "^0.3.181",
+    "koa": "^2.16.2"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.15.0",
+    "@types/koa__router": "^12.0.4",
+    "@types/node": "^20.19.13",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

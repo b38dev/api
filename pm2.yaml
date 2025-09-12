@@ -1,0 +1,7 @@
+apps:
+    - name: b38dev
+      script: pnpm
+      args:
+          - start
+      watch: true
+      interpreter: "/usr/bin/zsh"
