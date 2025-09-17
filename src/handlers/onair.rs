@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::error::AppError;
-use crate::models::BangumiItem;
-use crate::state::AppState;
+use crate::models::onair::BangumiItem;
+use crate::states::AppState;
 use axum::{
     extract::{Query, State},
     Json,
@@ -17,17 +17,17 @@ pub struct OnAirResponse {
     pub data: Vec<OnAirResultTuple>,
 }
 
-pub async fn onair_handler(
+pub async fn handler(
     Query(pagination): Query<HashMap<String, String>>,
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<OnAirResponse>, AppError> {
     let mut items = Vec::new();
-    if let Some(q) = pagination.get("q") {
-        let subjects = q.split(",").collect::<Vec<&str>>();
+    if let Some(subjects) = pagination.get("subjects") {
+        let subjects = subjects.split(",").collect::<Vec<&str>>();
         if subjects.len() > 0 {
-            let cache = state.subject_map.read().await;
+            let onair = state.onair.read().await;
             for id in subjects {
-                if let Some(item) = cache.data.get(id) {
+                if let Some(item) = onair.get(id) {
                     items.push(OnAirResultTuple(id.parse::<usize>().unwrap(), item.clone()))
                 }
             }

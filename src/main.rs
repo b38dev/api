@@ -1,7 +1,20 @@
-use axum_project_template::create_app;
-use axum_project_template::state::{refresh_cache, AppState, DAILY_REFRESH_INTERVAL};
+pub mod error;
+pub mod handlers;
+pub mod models;
+pub mod routes;
+pub mod states;
+pub mod tasks;
+
+use std::sync::Arc;
+
+use axum::Router;
+use routes::create_router;
+use tower_http::trace::{DefaultMakeSpan, TraceLayer};
+use tracing::Level;
+
+use states::AppState;
 use tokio::net::TcpListener;
-use tracing::{error, info};
+use tracing::info;
 
 #[tokio::main]
 async fn main() {
@@ -9,26 +22,24 @@ async fn main() {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    let app_state = AppState::new();
+    let app_state = Arc::new(AppState::new(
+        "https://cdn.jsdelivr.net/gh/bangumi-data/bangumi-data@latest/dist/data.json",
+        "cache/data.json",
+    ));
 
-    if let Err(e) = refresh_cache(app_state.clone()).await {
-        panic!("初始化数据失败: {:?}", e);
-    }
-
-    let state_for_task = app_state.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(DAILY_REFRESH_INTERVAL);
-        loop {
-            interval.tick().await; // 等待下一个时间点
-            if let Err(e) = refresh_cache(state_for_task.clone()).await {
-                error!("每日缓存刷新失败: {:?}", e);
-            }
-        }
-    });
+    app_state.init().await;
+    tasks::start_tasks(app_state.clone());
 
     let app = create_app().with_state(app_state);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     info!("服务启动于 http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
+}
+
+pub fn create_app() -> Router<Arc<AppState>> {
+    let trace_layer =
+        TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::new().level(Level::INFO));
+
+    create_router().layer(trace_layer)
 }
