@@ -26,6 +26,7 @@ async fn main() {
     let app_state = Arc::new(AppState::new(
         &config.onair_mirror,
         &config.onair_cache_path,
+        config.proxy.clone(),
     ));
 
     app_state.init().await;

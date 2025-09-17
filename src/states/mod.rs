@@ -9,9 +9,9 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(mirror: &str, cache_path: &str) -> Self {
+    pub fn new(mirror: &str, cache_path: &str, proxy: Option<String>) -> Self {
         Self {
-            onair: Arc::new(RwLock::new(OnAir::new(mirror, cache_path))),
+            onair: Arc::new(RwLock::new(OnAir::new(mirror, cache_path, proxy))),
         }
     }
 

@@ -33,11 +33,15 @@ pub struct OnAir {
 }
 
 impl OnAir {
-    pub fn new(mirror: &str, cache_path: &str) -> Self {
+    pub fn new(mirror: &str, cache_path: &str, proxy: Option<String>) -> Self {
+        let mut client_builder = reqwest::Client::builder();
+        if let Some(proxy) = proxy {
+            client_builder = client_builder.proxy(reqwest::Proxy::http(proxy).unwrap());
+        }
         Self {
             mirror: mirror.to_string(),
             cache_path: cache_path.to_string(),
-            client: reqwest::Client::new(),
+            client: client_builder.build().unwrap(),
             data: None,
         }
     }
@@ -65,7 +69,14 @@ impl OnAir {
     }
 
     pub async fn refresh(&mut self) -> Result<(), AppError> {
-        let bangumi_data: String = self.client.get(&self.mirror).send().await?.text().await?;
+        let bangumi_data: String = self
+            .client
+            .get(&self.mirror)
+            .timeout(Duration::from_secs(15))
+            .send()
+            .await?
+            .text()
+            .await?;
         let hash = md5::compute(&bangumi_data);
         let hash = format!("{:x}", hash);
         if let Some(data) = &self.data {
