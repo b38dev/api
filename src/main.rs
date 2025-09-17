@@ -1,3 +1,4 @@
+pub mod config;
 pub mod error;
 pub mod handlers;
 pub mod models;
@@ -21,10 +22,10 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
-
+    let config = config::get_config();
     let app_state = Arc::new(AppState::new(
-        "https://cdn.jsdelivr.net/gh/bangumi-data/bangumi-data@latest/dist/data.json",
-        "cache/data.json",
+        &config.onair_mirror,
+        &config.onair_cache_path,
     ));
 
     app_state.init().await;
@@ -32,7 +33,7 @@ async fn main() {
 
     let app = create_app().with_state(app_state);
 
-    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = TcpListener::bind(&config.listen).await.unwrap();
     info!("服务启动于 http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
