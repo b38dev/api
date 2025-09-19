@@ -1,23 +1,42 @@
-pub struct Config {
+use clap::Parser;
+use figment::{
+    providers::{Env, Format, Yaml},
+    Figment,
+};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppConfig {
     pub listen: String,
-    pub db_connection: String,
-    pub onair_mirror: String,
-    pub onair_cache_path: String,
+    pub onair: OnAirConfig,
     pub proxy: Option<String>,
 }
 
-pub fn get_config() -> Config {
-    Config {
-        listen: std::env::var("LISTEN").unwrap_or_else(|_| "127.0.0.1:3000".to_string()),
-        db_connection: std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "mongodb://admin:password@127.0.0.1:27017/?authSource=admin".to_string()
-        }),
-        onair_mirror: std::env::var("ONAIR_MIRROR").unwrap_or_else(|_| {
-            "https://cdn.jsdelivr.net/gh/bangumi-data/bangumi-data@latest/dist/data.json"
-                .to_string()
-        }),
-        onair_cache_path: std::env::var("ONAIR_CACHE_PATH")
-            .unwrap_or_else(|_| "cache/data.json".to_string()),
-        proxy: std::env::var("PROXY").map_or(None, |s| Some(s)),
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OnAirConfig {
+    pub mirror: String,
+    // "https://cdn.jsdelivr.net/gh/bangumi-data/bangumi-data@latest/dist/data.json"
+    // "https://github.com/bangumi-data/bangumi-data/raw/refs/heads/master/dist/data.json"
+    pub cache_path: String,
+    // "cache/data.json"
+    pub retry: usize,
+    pub interval: u64,
+}
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct Args {
+    // config file path, support YAML
+    #[arg(short, long)]
+    config: String,
+}
+
+pub fn get_config() -> AppConfig {
+    let args = Args::parse();
+    let config: AppConfig = Figment::new()
+        .merge(Yaml::file(args.config))
+        .merge(Env::raw().only(&["PROXY", "LISTEN"]))
+        .extract()
+        .unwrap();
+    config
 }
