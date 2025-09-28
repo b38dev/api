@@ -1,14 +1,12 @@
+use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::onair::{BangumiData, BangumiItem, SiteList};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::fs;
 use tracing::warn;
-
-pub const DAILY_REFRESH_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60); // 24 小时
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Data {
@@ -25,22 +23,20 @@ impl Data {
 #[derive(Debug)]
 pub struct OnAir {
     pub mirror: String,
-    // "https://cdn.jsdelivr.net/gh/bangumi-data/bangumi-data@latest/dist/data.json"
     pub cache_path: String,
-    // "cache/data.json"
     pub client: reqwest::Client,
     pub data: Option<Arc<Data>>,
 }
 
 impl OnAir {
-    pub fn new(mirror: &str, cache_path: &str, proxy: Option<String>) -> Self {
+    pub fn new(config: Arc<AppConfig>) -> Self {
         let mut client_builder = reqwest::Client::builder();
-        if let Some(proxy) = proxy {
-            client_builder = client_builder.proxy(reqwest::Proxy::http(proxy).unwrap());
+        if let Some(proxy) = &config.proxy {
+            client_builder = client_builder.proxy(reqwest::Proxy::all(proxy).unwrap());
         }
         Self {
-            mirror: mirror.to_string(),
-            cache_path: cache_path.to_string(),
+            mirror: config.onair.mirror.clone(),
+            cache_path: config.onair.cache_path.clone(),
             client: client_builder.build().unwrap(),
             data: None,
         }
@@ -69,14 +65,7 @@ impl OnAir {
     }
 
     pub async fn refresh(&mut self) -> Result<(), AppError> {
-        let bangumi_data: String = self
-            .client
-            .get(&self.mirror)
-            .timeout(Duration::from_secs(15))
-            .send()
-            .await?
-            .text()
-            .await?;
+        let bangumi_data: String = self.client.get(&self.mirror).send().await?.text().await?;
         let hash = md5::compute(&bangumi_data);
         let hash = format!("{:x}", hash);
         if let Some(data) = &self.data {

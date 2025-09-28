@@ -1,18 +1,35 @@
-use crate::states::{onair::DAILY_REFRESH_INTERVAL, AppState};
-use std::sync::Arc;
-use tracing::{error, info};
+use crate::{config::AppConfig, error::AppError, states::AppState};
+use std::{sync::Arc, time::Duration};
 
-pub fn refresh(app_state: Arc<AppState>) {
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(DAILY_REFRESH_INTERVAL);
-        loop {
-            interval.tick().await;
-            info!("开始每日 on-air 数据刷新...");
-            if let Err(e) = app_state.onair.write().await.refresh().await {
-                error!("每日 on-air 数据刷新失败: {:?}", e);
-            } else {
-                info!("每日 on-air 数据刷新成功。");
-            }
-        }
-    });
+#[derive(Clone, Debug)]
+pub struct OnAirTask {
+    pub name: String,
+    pub retry: usize,
+    pub interval: Duration,
+}
+
+impl super::Task for OnAirTask {
+    async fn run(&self, state: Arc<AppState>) -> Result<(), AppError> {
+        state.onair.write().await.refresh().await
+    }
+
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn get_retry(&self) -> usize {
+        self.retry
+    }
+
+    fn get_interval(&self) -> Duration {
+        self.interval.clone()
+    }
+}
+
+pub fn task(config: Arc<AppConfig>) -> OnAirTask {
+    OnAirTask {
+        name: "OnAir 定时更新 bangumi-data".to_string(),
+        interval: Duration::from_secs(config.onair.interval),
+        retry: config.onair.retry,
+    }
 }
