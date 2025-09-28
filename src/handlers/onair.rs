@@ -13,11 +13,8 @@ use axum::{
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct OnAirResultTuple(usize, BangumiItem);
-
-#[derive(Serialize)]
 pub struct OnAirResponse {
-    pub data: Vec<OnAirResultTuple>,
+    pub data: Vec<(usize, BangumiItem)>,
 }
 
 pub async fn handler(
@@ -28,10 +25,9 @@ pub async fn handler(
     if let Some(subjects) = pagination.get("subjects") {
         let subjects = subjects.split(",").collect::<HashSet<&str>>();
         if subjects.len() > 0 {
-            let onair = state.onair.read().await;
             for id in subjects {
-                if let Some(item) = onair.get(id) {
-                    items.push(OnAirResultTuple(id.parse::<usize>().unwrap(), item.clone()))
+                if let Some(item) = state.onair.get(id).await {
+                    items.push((id.parse::<usize>().unwrap(), item))
                 }
             }
         }

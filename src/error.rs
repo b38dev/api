@@ -28,6 +28,7 @@ impl IntoResponse for AppError {
 
 /// 实现 From<reqwest::Error> for AppError
 /// 这让我们可以使用 `?` 操作符来自动转换 reqwest 的错误
+#[cfg(feature = "reqwest")]
 impl From<reqwest::Error> for AppError {
     fn from(err: reqwest::Error) -> Self {
         // 在实际应用中，记录详细的错误信息很重要
@@ -49,6 +50,16 @@ impl From<serde_json::Error> for AppError {
 /// 这让我们可以使用 `?` 操作符来自动转换 IO 错误
 impl From<std::io::Error> for AppError {
     fn from(err: std::io::Error) -> Self {
+        tracing::error!("io error: {:?}", err);
+        AppError::InternalServerError
+    }
+}
+
+/// 实现 From<tokio_cron_scheduler::Error> for AppError
+/// 这让我们可以使用 `?` 操作符来自动转换 IO 错误
+#[cfg(feature = "task")]
+impl From<tokio_cron_scheduler::JobSchedulerError> for AppError {
+    fn from(err: tokio_cron_scheduler::JobSchedulerError) -> Self {
         tracing::error!("io error: {:?}", err);
         AppError::InternalServerError
     }

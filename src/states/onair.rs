@@ -1,22 +1,48 @@
-use crate::config::AppConfig;
+use crate::config::OnAirConfig;
 use crate::error::AppError;
 use crate::models::onair::{BangumiData, BangumiItem, SiteList};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use tokio::fs;
+use tokio::sync::RwLock;
 use tracing::warn;
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct Cache {
+    items: HashMap<String, BangumiItem>,
+    hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Data {
-    pub items: HashMap<String, BangumiItem>,
-    pub hash: String,
+    cache: Cache,
 }
 
 impl Data {
+    fn new() -> Self {
+        Self {
+            cache: Cache {
+                items: HashMap::new(),
+                hash: "".to_string(),
+            },
+        }
+    }
+
     fn get(&self, id: &str) -> Option<&BangumiItem> {
-        self.items.get(id)
+        self.cache.items.get(id)
+    }
+
+    fn get_items(&self) -> &HashMap<String, BangumiItem> {
+        &self.cache.items
+    }
+
+    fn get_hash(&self) -> &str {
+        &self.cache.hash
+    }
+
+    fn update(&mut self, cache: Cache) {
+        self.cache = cache;
     }
 }
 
@@ -25,53 +51,56 @@ pub struct OnAir {
     pub mirror: String,
     pub cache_path: String,
     pub client: reqwest::Client,
-    pub data: Option<Arc<Data>>,
+    pub data: RwLock<Data>,
 }
 
 impl OnAir {
-    pub fn new(config: Arc<AppConfig>) -> Self {
+    pub fn new(config: &OnAirConfig) -> Self {
         let mut client_builder = reqwest::Client::builder();
         if let Some(proxy) = &config.proxy {
             client_builder = client_builder.proxy(reqwest::Proxy::all(proxy).unwrap());
         }
         Self {
-            mirror: config.onair.mirror.clone(),
-            cache_path: config.onair.cache_path.clone(),
+            mirror: config.mirror.clone(),
+            cache_path: config.cache_path.clone(),
             client: client_builder.build().unwrap(),
-            data: None,
+            data: RwLock::new(Data::new()),
         }
     }
 
-    pub fn get(&self, id: &str) -> Option<&BangumiItem> {
-        if let Some(data) = &self.data {
-            data.get(id)
+    pub async fn get(&self, id: &str) -> Option<BangumiItem> {
+        if let Some(data) = self.data.read().await.get(id) {
+            Some(data.to_owned())
         } else {
             None
         }
     }
 
-    pub async fn init(&mut self) -> Result<(), AppError> {
+    pub async fn get_items(&self) -> HashMap<String, BangumiItem> {
+        self.data.read().await.get_items().to_owned()
+    }
+
+    pub async fn init(&self) -> Result<(), AppError> {
         if let Err(_) = self.load_cache().await {
             self.refresh().await?
         }
         Ok(())
     }
 
-    pub async fn load_cache(&mut self) -> Result<(), AppError> {
+    pub async fn load_cache(&self) -> Result<(), AppError> {
         let content = fs::read_to_string(&self.cache_path).await?;
-        let data: Data = serde_json::from_str(&content).map_err(|e| AppError::from(e))?;
-        self.data = Some(Arc::new(data));
+        let cache: Cache = serde_json::from_str(&content).map_err(|e| AppError::from(e))?;
+        self.data.write().await.update(cache);
         Ok(())
     }
 
-    pub async fn refresh(&mut self) -> Result<(), AppError> {
+    pub async fn refresh(&self) -> Result<(), AppError> {
         let bangumi_data: String = self.client.get(&self.mirror).send().await?.text().await?;
         let hash = md5::compute(&bangumi_data);
         let hash = format!("{:x}", hash);
-        if let Some(data) = &self.data {
-            if data.hash.eq(&hash) {
-                return Ok(());
-            }
+
+        if self.data.read().await.get_hash().eq(&hash) {
+            return Ok(());
         }
         let mut items = HashMap::new();
         serde_json::from_str::<BangumiData>(&bangumi_data)?
@@ -87,8 +116,9 @@ impl OnAir {
                     }
                 }
             });
-        let data = Data { items, hash };
-        let json_string = serde_json::to_string(&data)?;
+        let cache = Cache { items, hash };
+        let json_string = serde_json::to_string(&cache)?;
+        self.data.write().await.update(cache);
 
         let path = Path::new(&self.cache_path);
         if let Some(parent) = path.parent() {
@@ -99,7 +129,6 @@ impl OnAir {
         if let Err(e) = fs::write(path, json_string).await {
             warn!("写入文件缓存失败: {}", e);
         }
-        self.data = Some(Arc::new(data));
         Ok(())
     }
 }

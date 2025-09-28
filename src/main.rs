@@ -2,14 +2,17 @@ pub mod config;
 pub mod error;
 pub mod handlers;
 pub mod models;
+#[cfg(feature = "parser")]
+pub mod parser;
 pub mod routes;
 pub mod states;
+#[cfg(feature = "task")]
 pub mod tasks;
 
 use std::sync::Arc;
 
-use axum::http::Method;
 use axum::Router;
+use axum::http::Method;
 use routes::create_router;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -29,7 +32,8 @@ async fn main() {
     let config = Arc::new(config::get_config());
     let state = Arc::new(AppState::new(config.clone()));
 
-    state.init().await;
+    state.init().await.unwrap();
+    #[cfg(feature = "task")]
     tasks::start_tasks(state.clone());
 
     let app = create_app().with_state(state);

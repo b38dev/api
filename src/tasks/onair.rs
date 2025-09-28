@@ -1,16 +1,16 @@
-use crate::{config::AppConfig, error::AppError, states::AppState};
-use std::{sync::Arc, time::Duration};
+use crate::{config::OnAirConfig, error::AppError, states::AppState};
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct OnAirTask {
     pub name: String,
     pub retry: usize,
-    pub interval: Duration,
+    pub cron: String,
 }
 
 impl super::Task for OnAirTask {
     async fn run(&self, state: Arc<AppState>) -> Result<(), AppError> {
-        state.onair.write().await.refresh().await
+        state.onair.refresh().await
     }
 
     fn get_name(&self) -> String {
@@ -21,15 +21,15 @@ impl super::Task for OnAirTask {
         self.retry
     }
 
-    fn get_interval(&self) -> Duration {
-        self.interval.clone()
+    fn get_cron(&self) -> String {
+        self.cron.clone()
     }
 }
 
-pub fn task(config: Arc<AppConfig>) -> OnAirTask {
+pub fn task(config: &OnAirConfig) -> OnAirTask {
     OnAirTask {
         name: "OnAir 定时更新 bangumi-data".to_string(),
-        interval: Duration::from_secs(config.onair.interval),
-        retry: config.onair.retry,
+        cron: config.cron.clone(),
+        retry: config.retry,
     }
 }
