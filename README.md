@@ -5,6 +5,14 @@ url: `https://api.b38.dev`
 ## V1
 
 * nest path `v1/`
+* Error Response
+```json
+{
+    "error": "error message",
+    "status": 500
+}
+```
+
 
 ### OnAir
 
@@ -76,7 +84,7 @@ url: `https://api.b38.dev`
 -   Response example with uid `sai`
 
 ```json
-{
+{ "data": {
     "state": "active",
     "nid": 1,
     "sid": "sai",
@@ -85,16 +93,16 @@ url: `https://api.b38.dev`
         "key_point": "2025-10-2",
         "names": ["ıɐs", "Sai🖖", "Sai😊", "Sai", "Sai 😊"]
     }
-}
+} }
 ```
 
 -   Response example with uid `sai`, first time
 
 ```json
-{
+{ "data": {
     "state": "active",
     "nid": 1,
     "sid": "sai",
     "name_history": null
-}
+} }
 ```

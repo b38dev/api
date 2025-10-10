@@ -9,13 +9,24 @@ pub fn routes() -> Router<AppState> {
 
 #[derive(serde::Serialize)]
 pub struct NameHistoryResponse {
+    pub data: Data,
+}
+
+impl From<User> for NameHistoryResponse {
+    fn from(data: User) -> Self {
+        Self { data: data.into() }
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct Data {
     pub state: UserState,
     pub nid: Option<i32>,
     pub sid: Option<String>,
     pub name_history: Option<NameHistory>,
 }
 
-impl From<User> for NameHistoryResponse {
+impl From<User> for Data {
     fn from(user: User) -> Self {
         Self {
             state: user.state,

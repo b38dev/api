@@ -29,6 +29,10 @@ pub fn parse_collection(section: &Elements) -> Option<TypedCollection> {
 pub fn parse_userpage(html: &str) -> anyhow::Result<InitUser> {
     // tracing::debug!("Parsing user page HTML {html}");
     let document = Vis::load(html).map_err(|e| anyhow::anyhow!("Failed to load HTML: {}", e))?;
+    let message = document.find(".message>h2").text();
+    if message.eq("呜咕，出错了") {
+        return Err(anyhow::anyhow!("User not found"));
+    }
     let join_time = document
         .find("#user_home ul.network_service > li:first-child > span.tip")
         .text()
@@ -36,8 +40,11 @@ pub fn parse_userpage(html: &str) -> anyhow::Result<InitUser> {
     let join_time = parse_time(&join_time).ok();
     let name_single_element = document.find("#headerProfile .nameSingle");
     let name_element = name_single_element.find(".inner .name");
-    let uid = name_element.find("small.grey").text()[1..].to_string();
-    let uid = Uid::from_str(&uid);
+    let uid = name_element.find("small.grey").text();
+    if !uid.starts_with("@") {
+        return Err(anyhow::anyhow!("Failed to parse user id"));
+    }
+    let uid = Uid::from_str(&uid[1..]);
     let (nid, sid) = if let Uid::Nid(nid) = uid {
         (Some(nid), None)
     } else {
