@@ -1,0 +1,16 @@
+[package]
+name = "collector-parser"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+model = { path = "../../service/model", package = "service-model" }
+
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+
+regex = "1.11"
+visdom = "1.0.3"

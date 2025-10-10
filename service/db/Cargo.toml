@@ -1,0 +1,25 @@
+[package]
+name = "service-db"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+config = { path = "../../config" }
+
+anyhow = { workspace = true }
+tokio = { workspace = true }
+
+[dependencies.sea-orm]
+version = "1.1.16"
+features = [
+    "debug-print",
+    "runtime-tokio-rustls",
+    "sqlx-postgres",
+    # "sqlx-mysql",
+    # "sqlx-sqlite",
+    "macros",
+    "with-time",
+    "with-chrono",
+    "with-json",
+    "with-uuid",
+]

@@ -1,55 +1,16 @@
-pub mod config;
-pub mod error;
-pub mod handlers;
-pub mod models;
-#[cfg(feature = "parser")]
-pub mod parser;
-pub mod routes;
-pub mod states;
-#[cfg(feature = "task")]
-pub mod tasks;
-
-use std::sync::Arc;
-
-use axum::Router;
-use axum::http::Method;
-use routes::create_router;
-use tower_http::{
-    cors::{Any, CorsLayer},
-    trace::{DefaultMakeSpan, TraceLayer},
-};
-use tracing::Level;
-
-use states::AppState;
-use tokio::net::TcpListener;
-use tracing::info;
-
 #[tokio::main]
-async fn main() {
+pub async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
+        .with_env_filter(tracing_subscriber::EnvFilter::new(
+            &config::get().tracing.filter, // "sea_orm=info,sqlx::query=info,debug",
+        ))
         .init();
-    let config = Arc::new(config::get_config());
-    let state = Arc::new(AppState::new(config.clone()));
+    db::init_db().await?;
 
-    state.init().await.unwrap();
-    #[cfg(feature = "task")]
-    tasks::start_tasks(state.clone());
+    tokio::spawn(collector::run());
+    tokio::spawn(api::run());
 
-    let app = create_app().with_state(state);
-
-    let listener = TcpListener::bind(&config.listen).await.unwrap();
-    info!("服务启动于 http://{}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
-}
-
-pub fn create_app() -> Router<Arc<AppState>> {
-    let cors_layer = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_origin(Any)
-        .allow_headers(Any);
-    let trace_layer =
-        TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::new().level(Level::INFO));
-
-    create_router().layer(cors_layer).layer(trace_layer)
+    tokio::signal::ctrl_c().await?;
+    Ok(())
 }

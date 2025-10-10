@@ -3,32 +3,38 @@ name = "b38dev"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [
+    ".",
+    "config",
+    "migration",
+    "api",
+    "service/db",
+    "service/model",
+    "service/interface",
+    "collector/fetcher",
+    "collector/scheduler",
+    "collector/parser",
+    "collector/interface",
+]
+
 [dependencies]
-axum = "0.8"
+config = { path = "config", package = "config" }
+db = { path = "service/db", package = "service-db" }
+api = { path = "api", features = ["v1"] }
+collector = { path = "collector/scheduler", package = "collector-scheduler" }
+
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.6", features = ["trace", "cors"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-clap = { version = "4.5", features = ["derive"] }
-figment = { version = "0.10", features = ["toml", "env", "yaml", "json"] }
-
-reqwest = { version = "0.12", features = ["json"], optional = true }
-md5 = { version = "0.8", optional = true }
-regex = { version = "1.11", optional = true }
-tokio-cron-scheduler = { version = "0.14", optional = true }
-mongodb = { version = "3.3", optional = true }
-scraper = { version = "0.24", optional = true }
-
-[features]
-default = ["full"]
-
-database = ["mongodb"]
-task = ["tokio-cron-scheduler"]
-parser = ["scraper", "regex"]
-
-user = ["database", "scraper", "task", "parser", "reqwest"]
-onair = ["reqwest", "task", "md5"]
-
-full = ["onair", "user"]
+futures = "0.3.31"
+anyhow = "1.0.100"
+chrono = "0.4.42"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

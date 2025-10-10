@@ -1,0 +1,15 @@
+[package]
+name = "collector-scheduler"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+config = { path = "../../config" }
+interface = { path = "../interface", package = "collector-interface" }
+
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+
+tokio-cron-scheduler = "0.15"

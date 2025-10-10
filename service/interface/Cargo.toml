@@ -1,0 +1,15 @@
+[package]
+name = "service-interface"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+config = { path = "../../config" }
+model = { path = "../model", package = "service-model" }
+db = { path = "../db", package = "service-db" }
+
+anyhow = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
