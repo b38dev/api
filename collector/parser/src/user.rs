@@ -27,7 +27,7 @@ pub fn parse_collection(section: &Elements) -> Option<TypedCollection> {
 }
 
 pub fn parse_userpage(html: &str) -> anyhow::Result<InitUser> {
-    tracing::debug!("Parsing user page HTML {html}");
+    // tracing::debug!("Parsing user page HTML {html}");
     let document = Vis::load(html).map_err(|e| anyhow::anyhow!("Failed to load HTML: {}", e))?;
     let join_time = document
         .find("#user_home ul.network_service > li:first-child > span.tip")
@@ -138,6 +138,8 @@ pub fn parse_timeline_name_history(html: &str) -> anyhow::Result<Option<NameHist
         return Ok(None);
     }
     let key_point = timeline.find("h4.Header").first().text();
+    let key_point = parse_time(&key_point)?;
+    let key_point = key_point.format("%Y-%-m-%-d").to_string();
     let names = timeline
         .find("li.tml_item > span > p.status:has(strong) > strong")
         .map(|_, e| e.text())

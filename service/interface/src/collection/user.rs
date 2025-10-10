@@ -1,6 +1,6 @@
-use db::{ActiveModelTrait, Set};
+use db::{ActiveModelTrait, Set, TryIntoModel};
 use db::{Condition, prelude::*};
-use model::common::user::{Extra, InitUser, NameHistory, Names, NamesUpdate, Uid};
+use model::common::user::{Extra, InitUser, NameHistory, NamesUpdate, Uid};
 use model::entity::user::{ActiveModel, Column, Entity, Model};
 
 pub async fn find_by_uid(db: &impl ConnectionTrait, uid: Uid) -> anyhow::Result<Option<Model>> {
@@ -52,7 +52,7 @@ pub async fn update_name_history(
     db: &impl ConnectionTrait,
     uid: Uid,
     NamesUpdate { key_point, names }: NamesUpdate,
-) -> anyhow::Result<Names> {
+) -> anyhow::Result<Model> {
     let user = find_by_uid(db, uid).await?;
     let user = user.ok_or(anyhow::anyhow!("User not found"))?;
     let mut extra = user.extra.clone();
@@ -70,8 +70,7 @@ pub async fn update_name_history(
         });
     }
     let mut user: ActiveModel = user.into();
-    let names = extra.name_history.as_ref().unwrap().names.clone();
     user.extra = Set(extra);
-    user.save(db).await?;
-    Ok(names)
+    user.clone().save(db).await?;
+    Ok(user.try_into_model()?)
 }

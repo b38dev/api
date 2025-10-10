@@ -7,7 +7,7 @@ use std::{
 
 pub use crate::entity::user::{Nid, Sid};
 
-#[derive(Deserialize, Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum Uid {
     Nid(Nid),
     Sid(Sid),

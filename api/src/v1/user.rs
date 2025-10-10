@@ -1,7 +1,7 @@
 use crate::AppState;
 
 use axum::{Json, Router, extract::Query, routing::get};
-use model::prelude::{Names, Uid, User};
+use model::prelude::{NameHistory, Uid, User, UserState};
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/name-history", get(query_name_history_by_uid))
@@ -9,21 +9,20 @@ pub fn routes() -> Router<AppState> {
 
 #[derive(serde::Serialize)]
 pub struct NameHistoryResponse {
-    pub names: Names,
-}
-
-impl NameHistoryResponse {
-    pub fn empty() -> Self {
-        Self {
-            names: Names::default(),
-        }
-    }
+    pub state: UserState,
+    pub nid: Option<i32>,
+    pub sid: Option<String>,
+    pub name_history: Option<NameHistory>,
 }
 
 impl From<User> for NameHistoryResponse {
     fn from(user: User) -> Self {
-        let names = user.extra.into();
-        Self { names }
+        Self {
+            state: user.state,
+            nid: user.nid,
+            sid: user.sid,
+            name_history: user.extra.name_history,
+        }
     }
 }
 
@@ -48,11 +47,6 @@ pub async fn query_name_history_by_uid(
     Query(NameHistoryQuery { uid }): Query<NameHistoryQuery>,
 ) -> crate::Result<Json<NameHistoryResponse>> {
     tracing::debug!("Query name history for uid: {}", uid.to_string());
-    let user = service::user::find_by_uid(uid.clone()).await?;
-    if let Some(user) = user {
-        Ok(Json(user.into()))
-    } else {
-        let user = collector::user::init_user_data(uid).await?;
-        return Ok(Json(user.into()));
-    }
+    let user = collector::user::query_user(uid).await?;
+    return Ok(Json(user.into()));
 }

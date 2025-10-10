@@ -663,6 +663,7 @@ dependencies = [
  "collector-fetcher",
  "collector-parser",
  "config",
+ "futures",
  "md5",
  "serde_json",
  "service-interface",

@@ -1,5 +1,5 @@
 use crate::collection;
-use model::common::user::{InitUser, Names, NamesUpdate, Uid};
+use model::common::user::{InitUser, NamesUpdate, Uid};
 use model::entity::user::Model;
 
 pub async fn find_by_uid(uid: Uid) -> anyhow::Result<Option<Model>> {
@@ -10,6 +10,6 @@ pub async fn init_user(init: InitUser) -> anyhow::Result<Model> {
     collection::user::init_user(db::get_db(), init).await
 }
 
-pub async fn update_name_history(uid: Uid, update: NamesUpdate) -> anyhow::Result<Names> {
+pub async fn update_name_history(uid: Uid, update: NamesUpdate) -> anyhow::Result<Model> {
     collection::user::update_name_history(db::get_db(), uid, update).await
 }

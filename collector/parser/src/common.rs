@@ -1,7 +1,8 @@
 use std::sync::LazyLock;
 
 use chrono::{
-    DateTime, Duration, FixedOffset, Months, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
+    DateTime, Datelike, Duration, FixedOffset, Months, NaiveDate, NaiveDateTime, NaiveTime,
+    TimeZone, Utc,
 };
 use regex::Regex;
 
@@ -49,6 +50,18 @@ fn to_utc8(dt: &NaiveDateTime) -> DateTime<Utc> {
 }
 
 pub fn parse_time(time: &str) -> anyhow::Result<DateTime<Utc>> {
+    if time == "今天" {
+        let now = Utc::now();
+        let d = NaiveDate::from_ymd_opt(now.year(), now.month(), now.day()).unwrap();
+        let dt = d.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+        return Ok(to_utc8(&dt));
+    }
+    if time == "昨天" {
+        let now = Utc::now() - Duration::days(1);
+        let d = NaiveDate::from_ymd_opt(now.year(), now.month(), now.day()).unwrap();
+        let dt = d.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+        return Ok(to_utc8(&dt));
+    }
     if time.ends_with("ago") {
         return parse_ago_time(time, AgoLang::Eng);
     }
