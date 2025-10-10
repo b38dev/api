@@ -1,28 +1,39 @@
-listen: 127.0.0.1:3000
-proxy: 127.0.0.1:7890
-modules:
+server: 
+  host: 127.0.0.1
+  port: 3000
+database: 
+  uri: postgres://user:password@127.0.0.1:5432/b38dev-dev
+tracing:
+  filter: "debug"
+
+
+fetcher:
+  proxy: 
+    host: 127.0.0.1
+    port: 7890
+  clients:
+    onair:
+      use_proxy: true
+      timeout_secs: 15
+    bangumi:
+      max_conn: 3
+      use_proxy: true
+      timeout_secs: 15
+      headers:
+        User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36
+        Cookie: "**"
+collector:
   onair:
     mirror: https://github.com/bangumi-data/bangumi-data/raw/refs/heads/master/dist/data.json
-    cache_path: /var/www/b38dev/cache/data.json
-    retry: 5
-    # CRON
-    # ┌──────────────── (optional) second (0 - 59)
-    # │ ┌────────────── minute (0 - 59)
-    # │ │ ┌──────────── hour (0 - 23)
-    # │ │ │ ┌────────── day of month (1 - 31)
-    # │ │ │ │ ┌──────── month (1 - 12, JAN-DEC)
-    # │ │ │ │ │ ┌────── day of week (0 - 6, SUN-Mon)
-    # │ │ │ │ │ │       (0 to 6 are Sunday to Saturday; 7 is Sunday, the same as 0)
-    # │ │ │ │ │ │
-    # * * * * * *
-    cron: "0 0 */1 * * *"
-    use_proxy: true
   user:
-    max_conn: 3
-    domains: 
+    origins:
+      - https://chii.in
       - https://bgm.tv
       - https://bangumi.tv
-      - https://chii.in
-    headers:
-      User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36
-      Cookie: "**"
+
+scheduler:
+  onair: 
+    cron: "0 0 * * * *"
+    retry: 3
+  user:
+    cron: "0 0 0 * * *"

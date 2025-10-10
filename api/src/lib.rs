@@ -35,7 +35,6 @@ pub async fn run() -> anyhow::Result<()> {
     let app = app.nest_service("/v1", v1::routes().with_state(state.clone()));
     let app = app.layer(cors_layer).layer(trace_layer);
     tracing::info!("Listening on http://{}", listen.local_addr()?);
-    // println!("Listening on http://{}", listen.local_addr()?);
     axum::serve(listen, app).await?;
     Ok(())
 }

@@ -1,0 +1,40 @@
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[database]
+uri = "postgres://user:password@127.0.0.1:5432/b38dev-dev"
+
+[tracing]
+filter = "debug"
+
+
+[fetcher.proxy]
+host = "127.0.0.1"
+port = 7890
+
+[fetcher.clients.onair]
+use_proxy = true
+timeout_secs = 15
+
+[fetcher.clients.bangumi]
+use_proxy = true
+max_conn = 3
+timeout_secs = 15
+headers.User-Agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+headers.Cookie = "**"
+
+
+[collector.onair]
+mirror = "https://github.com/bangumi-data/bangumi-data/raw/refs/heads/master/dist/data.json"
+
+[collector.user]
+origins = ["https://chii.in", "https://bgm.tv", "https://bangumi.tv"]
+
+
+[scheduler.onair]
+cron = "0 0 * * * *"
+retry = 3
+
+[scheduler.user]
+cron = "0 0 0 * * *"
