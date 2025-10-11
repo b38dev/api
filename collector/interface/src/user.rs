@@ -1,7 +1,7 @@
 use crate::common::TaskQueue;
 use std::sync::LazyLock;
 
-use model::common::user::{InitUser, NamesUpdate, Uid};
+use model::common::user::{InitUser, NamesUpdate, Uid, UserState};
 use model::prelude::User;
 
 static QUEUE: LazyLock<TaskQueue<Uid, User>> = LazyLock::new(|| TaskQueue::new(10));
@@ -32,15 +32,17 @@ impl Compass {
 }
 
 async fn fetch_user_info(uid: Uid) -> anyhow::Result<InitUser> {
-    let url = Compass::new(uid).home();
+    let url = Compass::new(uid.clone()).home();
     let fetcher = fetcher::get_bangumi();
     let html = fetcher.get(url).send().await?.text().await?;
-    parser::user::parse_userpage(&html)
+    let mut init = InitUser::default();
+    init.update_uid(uid);
+    parser::user::parse_userpage(&html, Some(init))
 }
 
 async fn fetch_names_update_until_key_point(
     uid: Uid,
-    key_point: &str,
+    key_point: chrono::DateTime<chrono::Utc>,
 ) -> anyhow::Result<Option<NamesUpdate>> {
     let mut page = 1;
     let mut all_names = std::collections::HashSet::new();
@@ -67,7 +69,7 @@ async fn fetch_names_update_until_key_point(
                 ret.status()
             ));
         }
-        let html = ret.text().await?;
+        let html = ret.text().await.expect("Fetch HTML Error");
         let name_history = parser::user::parse_timeline_name_history(&html);
         let Ok(name_history) = name_history else {
             tracing::error!("Failed to parse timeline page: {name_history:?}");
@@ -81,7 +83,7 @@ async fn fetch_names_update_until_key_point(
                 kp = Some(name_history.key_point.clone());
             }
             all_names.extend(name_history.names);
-            if name_history.key_point == key_point {
+            if key_point > name_history.key_point {
                 break;
             }
             page += 1;
@@ -96,21 +98,30 @@ async fn fetch_names_update_until_key_point(
     Ok(names_update)
 }
 
-async fn init_user_data(uid: Uid) -> anyhow::Result<User> {
+async fn update_user_data(uid: Uid) -> anyhow::Result<User> {
+    let user = service::user::find_by_uid(uid.clone()).await?;
+    if let Some(user) = user {
+        if !is_expired(user.update_at, &user.state) {
+            return Ok(user);
+        }
+    }
     let user = fetch_user_info(uid.clone()).await?;
     tracing::debug!("Fetched user info: {:?}", user);
-    let uid = if let Some(sid) = user.sid.clone() {
-        Uid::Sid(sid)
-    } else {
-        uid
+    service::user::upsert_user(user).await
+}
+
+fn get_fresh_duration(state: &UserState) -> chrono::Duration {
+    let dur = match state {
+        UserState::Active => config::get().collector.user.fresh_duration.active,
+        UserState::Abondon => config::get().collector.user.fresh_duration.abondon,
+        UserState::Dropped => config::get().collector.user.fresh_duration.dropped,
+        UserState::Banned => config::get().collector.user.fresh_duration.banned,
     };
-    let existing_user = service::user::find_by_uid(uid.clone()).await?;
-    if let Some(existing_user) = existing_user {
-        tracing::debug!("User already exists: {:?}", existing_user);
-        return Ok(existing_user);
-    }
-    tracing::debug!("Fetched user info: {:?}", user);
-    service::user::init_user(user).await
+    chrono::Duration::days(dur)
+}
+
+fn is_expired(update_at: chrono::DateTime<chrono::Utc>, state: &UserState) -> bool {
+    update_at < chrono::Utc::now() - get_fresh_duration(state)
 }
 
 pub async fn query_user(uid: Uid) -> anyhow::Result<User> {
@@ -118,22 +129,25 @@ pub async fn query_user(uid: Uid) -> anyhow::Result<User> {
     let user = if let Some(user) = user {
         user
     } else {
-        init_user_data(uid.clone()).await?
+        update_user_data(uid.clone()).await?
     };
     let result = user.clone();
     let queue = &QUEUE;
     let key = uid.clone();
     let task = || async move {
-        if let Some(name_history) = &user.extra.name_history {
-            let is_fresh = name_history.update_at > chrono::Utc::now() - chrono::Duration::days(1);
-            if is_fresh || user.state != model::common::user::UserState::Active {
+        let key_point = if let Some(name_history) = &user.extra.name_history {
+            if !is_expired(name_history.update_at, &user.state) {
                 return Ok(user);
             }
+            name_history.key_point
+        } else {
+            chrono::DateTime::<chrono::Utc>::MIN_UTC
         };
+
         let sid = user.sid.clone();
         let nid = user.nid.clone();
         let uid = sid.map_or_else(|| Uid::Nid(nid.unwrap()), |sid| Uid::Sid(sid));
-        let names_update = fetch_names_update_until_key_point(uid.clone(), "").await;
+        let names_update = fetch_names_update_until_key_point(uid.clone(), key_point).await;
         let Ok(names_update) = names_update else {
             tracing::error!("Failed to fetch names update: {:?}", names_update);
             return Ok(user);

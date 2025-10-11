@@ -15,8 +15,9 @@ pub struct Model {
     pub sid: Option<Sid>,
     pub name: String,
     pub state: UserState,
-    pub join_time: Option<DateTime>,
-    pub update_at: DateTime,
+    pub join_time: Option<DateTimeUtc>,
+    pub last_active: Option<DateTimeUtc>,
+    pub update_at: DateTimeUtc,
     #[sea_orm(column_type = "JsonBinary")]
     pub extra: Extra,
 }

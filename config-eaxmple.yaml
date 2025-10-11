@@ -30,6 +30,12 @@ collector:
       - https://chii.in
       - https://bgm.tv
       - https://bangumi.tv
+    active_month: 6
+    fresh_duration:
+      active: 1
+      abandoned: 30
+      dropped: 36500
+      banned: 36500
 
 scheduler:
   onair: 

@@ -678,6 +678,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "config",
  "regex",
  "serde_json",
  "service-model",

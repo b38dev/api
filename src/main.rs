@@ -8,8 +8,18 @@ pub async fn main() -> anyhow::Result<()> {
         .init();
     db::init_db().await?;
 
-    tokio::spawn(collector::run());
-    tokio::spawn(api::run());
+    tokio::spawn(async move {
+        let result = collector::run().await;
+        if let Err(e) = result {
+            tracing::error!("Collector encountered an error: {:?}", e);
+        }
+    });
+    tokio::spawn(async move {
+        let result = api::run().await;
+        if let Err(e) = result {
+            tracing::error!("API encountered an error: {:?}", e);
+        }
+    });
 
     tokio::signal::ctrl_c().await?;
     Ok(())

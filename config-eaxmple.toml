@@ -30,6 +30,11 @@ mirror = "https://github.com/bangumi-data/bangumi-data/raw/refs/heads/master/dis
 
 [collector.user]
 origins = ["https://chii.in", "https://bgm.tv", "https://bangumi.tv"]
+active_month = 6
+fresh_duration.active = 1
+fresh_duration.abondon = 30
+fresh_duration.dropped = 36500
+fresh_duration.banned = 36500
 
 
 [scheduler.onair]

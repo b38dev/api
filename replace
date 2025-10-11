@@ -1,0 +1,3 @@
+sudo systemctl stop b38dev
+sudo cp target/release/b38dev /usr/local/bin/b38dev
+sudo systemctl start b38dev

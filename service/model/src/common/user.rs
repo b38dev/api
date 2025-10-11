@@ -1,3 +1,4 @@
+use sea_orm::prelude::DateTimeUtc;
 use sea_orm::{DeriveValueType, FromJsonQueryResult};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -44,8 +45,8 @@ pub type Names = HashSet<String>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NameHistory {
-    pub update_at: chrono::DateTime<chrono::Utc>,
-    pub key_point: String,
+    pub update_at: DateTimeUtc,
+    pub key_point: DateTimeUtc,
     pub names: Names,
 }
 
@@ -231,20 +232,194 @@ pub struct Extra {
     pub collections: Option<Collections>,
 }
 
+impl Default for Extra {
+    fn default() -> Self {
+        Self {
+            name_history: None,
+            collections: None,
+        }
+    }
+}
+
+impl Extra {
+    pub fn merge(&mut self, other: Extra) -> &mut Self {
+        if let Some(nh) = other.name_history {
+            self.name_history = Some(nh);
+        }
+        if let Some(c) = other.collections {
+            self.collections = Some(c);
+        }
+        self
+    }
+
+    pub fn update_collections(&mut self, collections: Collections) -> &mut Self {
+        self.collections = Some(collections);
+        self
+    }
+
+    pub fn update_collections_opt(&mut self, collections: Option<Collections>) -> &mut Self {
+        if let Some(c) = collections {
+            self.collections = Some(c);
+        }
+        self
+    }
+
+    pub fn replace_name_history(&mut self, name_history: NameHistory) -> &mut Self {
+        self.name_history = Some(name_history);
+        self
+    }
+
+    pub fn update_name_history(&mut self, name_history: NamesUpdate) -> &mut Self {
+        if let Some(nh) = &mut self.name_history {
+            nh.update_at = chrono::Utc::now();
+            nh.key_point = name_history.key_point;
+            nh.names.extend(name_history.names);
+        } else {
+            self.name_history = Some(NameHistory {
+                update_at: chrono::Utc::now(),
+                key_point: name_history.key_point,
+                names: name_history.names,
+            });
+        }
+        self
+    }
+
+    pub fn update_name_history_opt(&mut self, name_history: Option<NamesUpdate>) -> &mut Self {
+        if let Some(nh) = name_history {
+            self.update_name_history(nh);
+        }
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct InitUser {
     pub nid: Option<Nid>,
     pub sid: Option<Sid>,
     pub name: String,
-    pub join_time: Option<chrono::DateTime<chrono::Utc>>,
+    pub join_time: Option<DateTimeUtc>,
+    pub last_active: Option<DateTimeUtc>,
     pub state: UserState,
     pub collections: Option<Collections>,
     pub names_update: Option<NamesUpdate>,
 }
 
+impl Default for InitUser {
+    fn default() -> Self {
+        Self {
+            nid: None,
+            sid: None,
+            name: String::new(),
+            join_time: None,
+            last_active: None,
+            state: UserState::Abondon,
+            collections: None,
+            names_update: None,
+        }
+    }
+}
+
+impl InitUser {
+    pub fn update_uid(&mut self, uid: Uid) -> &mut Self {
+        match uid {
+            Uid::Nid(nid) => self.nid = Some(nid),
+            Uid::Sid(sid) => self.sid = Some(sid),
+        }
+        self
+    }
+
+    pub fn update_name(&mut self, name: String) -> &mut Self {
+        self.name = name;
+        self
+    }
+
+    pub fn update_state(&mut self, state: UserState) -> &mut Self {
+        self.state = state;
+        self
+    }
+
+    pub fn update_join_time(&mut self, join_time: DateTimeUtc) -> &mut Self {
+        self.join_time = Some(join_time);
+        self
+    }
+
+    pub fn update_join_time_opt(&mut self, join_time: Option<DateTimeUtc>) -> &mut Self {
+        if let Some(jt) = join_time {
+            self.join_time = Some(jt);
+        }
+        self
+    }
+
+    pub fn update_last_active(&mut self, last_active: DateTimeUtc) -> &mut Self {
+        self.last_active = Some(last_active);
+        self
+    }
+
+    pub fn update_last_active_opt(&mut self, last_active: Option<DateTimeUtc>) -> &mut Self {
+        if let Some(la) = last_active {
+            self.last_active = Some(la);
+        }
+        self
+    }
+
+    pub fn update_collections(&mut self, collections: Collections) -> &mut Self {
+        self.collections = Some(collections);
+        self
+    }
+
+    pub fn update_collections_opt(&mut self, collections: Option<Collections>) -> &mut Self {
+        if let Some(c) = collections {
+            self.collections = Some(c);
+        }
+        self
+    }
+
+    pub fn update_names_update(&mut self, names_update: NamesUpdate) -> &mut Self {
+        self.names_update = Some(names_update);
+        self
+    }
+
+    pub fn update_names_update_opt(&mut self, names_update: Option<NamesUpdate>) -> &mut Self {
+        if let Some(nu) = names_update {
+            self.names_update = Some(nu);
+        }
+        self
+    }
+
+    pub fn set_nid(&mut self, nid: Option<Nid>) -> &mut Self {
+        self.nid = nid;
+        self
+    }
+
+    pub fn set_sid(&mut self, sid: Option<Sid>) -> &mut Self {
+        self.sid = sid;
+        self
+    }
+
+    pub fn set_join_time(&mut self, join_time: Option<DateTimeUtc>) -> &mut Self {
+        self.join_time = join_time;
+        self
+    }
+
+    pub fn set_last_active(&mut self, last_active: Option<DateTimeUtc>) -> &mut Self {
+        self.last_active = last_active;
+        self
+    }
+
+    pub fn set_names_update(&mut self, names_update: Option<NamesUpdate>) -> &mut Self {
+        self.names_update = names_update;
+        self
+    }
+
+    pub fn set_collections(&mut self, collections: Option<Collections>) -> &mut Self {
+        self.collections = collections;
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NamesUpdate {
-    pub key_point: String,
+    pub key_point: DateTimeUtc,
     pub names: Names,
 }
 

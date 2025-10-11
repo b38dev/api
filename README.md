@@ -85,24 +85,27 @@ url: `https://api.b38.dev`
 
 ```json
 { "data": {
-    "state": "active",
+    "name": "Sai🖖",
     "nid": 1,
     "sid": "sai",
+    "state": "active",
+    "join_time":"2008-06-18T16:00:00Z",
+    "last_active":"2025-10-08T16:41:09.884831Z",
+    "update_at":"2025-10-11T11:41:09.886272Z",
     "name_history": {
-        "update_at": "2025-10-10T10:47:24.819977961Z",
-        "key_point": "2025-10-2",
+        "update_at": "2025-10-11T11:41:24.243208886Z",
+        "key_point": "2025-10-02T16:00:00Z",
         "names": ["ıɐs", "Sai🖖", "Sai😊", "Sai", "Sai 😊"]
+    },
+    "collections":{
+        "anime": { "doing": 29, "collect": 240, "wish": 169, "on_hold": 42, "dropped": 19 },
+        "game":{ "doing": 24, "collect": 232, "wish": 96, "on_hold": 20, "dropped": 3 },
+        "book":{ "doing": 8, "collect": 141, "wish": 39, "on_hold": 5, "dropped": 1 },
+        "music":{ "collect": 229, "wish": 23 },
+        "real":{ "doing": 24, "collect": 166, "wish": 22, "on_hold": 19, "dropped": 29 }
     }
 } }
 ```
 
--   Response example with uid `sai`, first time
+-   Response example with uid `sai`, first time `name_history` is `undefined`
 
-```json
-{ "data": {
-    "state": "active",
-    "nid": 1,
-    "sid": "sai",
-    "name_history": null
-} }
-```

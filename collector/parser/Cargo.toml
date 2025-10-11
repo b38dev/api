@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+config = { path = "../../config" }
 model = { path = "../../service/model", package = "service-model" }
 
 tokio = { workspace = true }

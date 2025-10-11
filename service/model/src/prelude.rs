@@ -6,3 +6,5 @@ pub use crate::common::onair::{BangumiItem, BangumiItemMap};
 pub use crate::common::user::{
     Collections, Extra, InitUser, NameHistory, Names, SubjectType, TypedCollection, Uid, UserState,
 };
+
+pub use db::prelude::DateTimeUtc;
