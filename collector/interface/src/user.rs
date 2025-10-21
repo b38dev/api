@@ -1,11 +1,13 @@
 use crate::common::TaskQueue;
 use std::sync::LazyLock;
 
+use anyhow::anyhow;
 use chrono::Utc;
 use model::common::user::{InitUser, NamesUpdate, Uid, UserState};
 use model::prelude::User;
 
-static QUEUE: LazyLock<TaskQueue<Uid, User>> = LazyLock::new(|| TaskQueue::new(10));
+static NAME_QUEUE: LazyLock<TaskQueue<Uid, User>> = LazyLock::new(|| TaskQueue::new(10));
+static HOME_QUEUE: LazyLock<TaskQueue<Uid, User>> = LazyLock::new(|| TaskQueue::new(10));
 
 pub struct Compass {
     uid: Uid,
@@ -103,41 +105,22 @@ async fn fetch_names_update_until_key_point(
 }
 
 async fn update_user_data(uid: Uid) -> anyhow::Result<User> {
-    let user = service::user::find_by_uid(uid.clone()).await?;
-    if let Some(user) = user {
-        if !is_expired(user.update_at, &user.state) {
-            return Ok(user);
-        }
-    }
-    let user = fetch_user_info(uid.clone()).await?;
-    tracing::debug!("Fetched user info: {:?}", user);
-    service::user::upsert_user(user).await
-}
-
-fn get_fresh_duration(state: &UserState) -> chrono::Duration {
-    let dur = match state {
-        UserState::Active => config::get().collector.user.fresh_duration.active,
-        UserState::Abondon => config::get().collector.user.fresh_duration.abondon,
-        UserState::Dropped => config::get().collector.user.fresh_duration.dropped,
-        UserState::Banned => config::get().collector.user.fresh_duration.banned,
-    };
-    chrono::Duration::days(dur)
-}
-
-fn is_expired(update_at: chrono::DateTime<chrono::Utc>, state: &UserState) -> bool {
-    update_at < chrono::Utc::now() - get_fresh_duration(state)
-}
-
-pub async fn query_user(uid: Uid) -> anyhow::Result<User> {
-    let user = service::user::find_by_uid(uid.clone()).await?;
-    let user = if let Some(user) = user {
-        user
-    } else {
-        update_user_data(uid.clone()).await?
-    };
-    let result = user.clone();
-    let queue = &QUEUE;
+    let queue = &HOME_QUEUE;
     let key = uid.clone();
+    let task = async move || {
+        let user = fetch_user_info(uid.clone()).await?;
+        tracing::debug!("Fetched user info: {:?}", user);
+        service::user::upsert_user(user).await
+    };
+    queue
+        .get_or_spawn(key, task)
+        .await
+        .map_err(|err| anyhow!("Failed to update user data: {:?}", err))
+}
+
+async fn update_name_history(uid: Uid, user: User) -> anyhow::Result<User> {
+    let key = uid.clone();
+    let queue = &NAME_QUEUE;
     let task = || async move {
         let key_point = if let Some(name_history) = &user.extra.name_history {
             if !is_expired(name_history.update_at, &user.state) {
@@ -163,9 +146,48 @@ pub async fn query_user(uid: Uid) -> anyhow::Result<User> {
         };
         service::user::update_name_history(uid, names_update).await
     };
+    queue
+        .get_or_spawn(key, task)
+        .await
+        .map_err(|err| anyhow!("Failed to update user data: {:?}", err))
+}
 
-    tokio::spawn(async move {
-        let _user = queue.get_or_spawn(key, task).await;
-    });
+async fn update_user_data_if_expired(uid: Uid, user: User) -> anyhow::Result<User> {
+    let user = if is_expired(user.update_at, &user.state) {
+        update_user_data(uid.clone()).await?
+    } else {
+        user
+    };
+    if let Some(name_history) = &user.extra.name_history {
+        if !is_expired(name_history.update_at, &user.state) {
+            return Ok(user);
+        }
+    }
+    update_name_history(uid, user).await
+}
+
+fn get_fresh_duration(state: &UserState) -> chrono::Duration {
+    let dur = match state {
+        UserState::Active => config::get().collector.user.fresh_duration.active,
+        UserState::Abondon => config::get().collector.user.fresh_duration.abondon,
+        UserState::Dropped => config::get().collector.user.fresh_duration.dropped,
+        UserState::Banned => config::get().collector.user.fresh_duration.banned,
+    };
+    chrono::Duration::days(dur)
+}
+
+fn is_expired(update_at: chrono::DateTime<chrono::Utc>, state: &UserState) -> bool {
+    update_at < chrono::Utc::now() - get_fresh_duration(state)
+}
+
+pub async fn query_user(uid: Uid) -> anyhow::Result<User> {
+    let user = service::user::find_by_uid(uid.clone()).await?;
+    let user = if let Some(user) = user {
+        user
+    } else {
+        update_user_data(uid.clone()).await?
+    };
+    let result = user.clone();
+    tokio::spawn(async move { update_user_data_if_expired(uid, user).await });
     Ok(result)
 }
