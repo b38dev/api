@@ -1,6 +1,7 @@
 use crate::common::TaskQueue;
 use std::sync::LazyLock;
 
+use chrono::Utc;
 use model::common::user::{InitUser, NamesUpdate, Uid, UserState};
 use model::prelude::User;
 
@@ -88,6 +89,9 @@ async fn fetch_names_update_until_key_point(
             }
             page += 1;
         } else {
+            if kp.is_none() {
+                kp = Some(Utc::now());
+            }
             break;
         }
     }
